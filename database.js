@@ -1,58 +1,57 @@
 const Sequelize = require("sequelize")
 
-const db = new Sequelize("postgres://localhost:5432/hot-dogs", {
+/**
+ * Sequelize:
+ * Sequelize Hooks
+ * Class / Instance methods
+ *
+ * Express:
+ * The four basic methods: GET, POST, PUT, DELETE
+ * How to set response status: 200, 201, 404, 500
+ * Query Params
+ * routers (vs app)
+ */
+
+const db = new Sequelize("postgres://localhost:5432/dogs", {
   logging: false
 })
 
-// Each of this is a "Model", which corresponds to a "table" in Postgres
-const HotDog = db.define("hotdog", {
-  name: Sequelize.STRING,
+const Dog = db.define("dog", {
+  name: {
+    type: Sequelize.STRING,
+    allowNull: false
+  },
+  breed: Sequelize.ENUM("retriever", "corgi", "labradoodle"),
+  favoriteToy: Sequelize.STRING
 })
-const Sausage = db.define("sausage", {
-  name: Sequelize.STRING,
-  vegetarian: Sequelize.BOOLEAN
-})
-const Bun = db.define("bun", {
-  name: Sequelize.STRING,
-  glutenFree: {
-    type: Sequelize.BOOLEAN,
-    allowNull: false,
-    defaultValue: false
-  }
-})
-const Topping = db.define("topping", {
+
+const Owner = db.define("owner", {
   name: Sequelize.STRING
 })
 
-// One To One
-HotDog.hasOne(Sausage)
-Sausage.belongsTo(HotDog)
-
-// One To Many
-HotDog.hasMany(Topping)
-Topping.belongsTo(HotDog)
+// One to One
+Dog.belongsTo(Owner)
+Owner.hasOne(Dog)
 
 async function seedDatabase() {
-  await db.sync({ force: true }) // connects to the database
+  await db.sync({ force: true })
 
-  await Sausage.create({ name: "frank", vegetarian: false })
-  await Bun.create({ name: "standard" })
-
-  const chicagoStyle = await HotDog.create({ name: "chicago-style" })
-  // console.log(chicagoStyle.__proto__) // List the magic methods
-
-  const celery = await Topping.create({ name: "celery salt" })
-  const tomato = await Topping.create({ name: "tomato" })
-  await chicagoStyle.addTopping(celery)
-  await chicagoStyle.addTopping(tomato)
-
-  // const chicagoStyleWithToppings = HotDog.findByPk(1) // Finds one hot dog
-  const chicagoStyleWithToppings = await HotDog.findAll({
-    where: { name: "chicago-style" },
+  // console.log(Dog)
+  await Dog.create(
+    {
+      name: "Fido",
+      breed: "retriever",
+      favoriteToy: "stick"
+    }
+  )
+  const fido = await Dog.findAll({
+    where: { name: "Fido" },
     raw: true
   })
-  console.log(chicagoStyleWithToppings)
+  console.log(fido)
 
-  await db.close() // close the database
+  // await db.close()
 }
 seedDatabase()
+
+module.exports = { Dog, Owner }
