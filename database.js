@@ -1,55 +1,58 @@
 const Sequelize = require("sequelize")
 
-const db = new Sequelize("postgres://localhost:5432/sandwiches", {
+const db = new Sequelize("postgres://localhost:5432/hot-dogs", {
   logging: false
 })
 
-const Sandwich = db.define("sandwich", {
-  name: Sequelize.STRING
+// Each of this is a "Model", which corresponds to a "table" in Postgres
+const HotDog = db.define("hotdog", {
+  name: Sequelize.STRING,
 })
-
-const Topping = db.define("topping", {
+const Sausage = db.define("sausage", {
   name: Sequelize.STRING,
   vegetarian: Sequelize.BOOLEAN
 })
+const Bun = db.define("bun", {
+  name: Sequelize.STRING,
+  glutenFree: {
+    type: Sequelize.BOOLEAN,
+    allowNull: false,
+    defaultValue: false
+  }
+})
+const Topping = db.define("topping", {
+  name: Sequelize.STRING
+})
 
-// One to Many
-Topping.belongsTo(Sandwich)
-Sandwich.hasMany(Topping)
+// One To One
+HotDog.hasOne(Sausage)
+Sausage.belongsTo(HotDog)
+
+// One To Many
+HotDog.hasMany(Topping)
+Topping.belongsTo(HotDog)
 
 async function seedDatabase() {
-  await db.sync({ force: true })
-  const blt = await Sandwich.create({ name: "BLT" })
-  const bacon = await Topping.create({ name: "bacon", vegetarian: false })
-  const lettuce = await Topping.create({ name: "lettuce", vegetarian: true })
-  const bltIngredients = await blt.getToppings()
-  // console.log("bltIngredients:" , bltIngredients)
-  // console.log('BLT magic methods', blt.__proto__)
-  await blt.addTopping(bacon)
-  await blt.addTopping(lettuce)
+  await db.sync({ force: true }) // connects to the database
 
-  const plainBacon = await Topping.findAll({
-    where: {
-      name: "bacon"
-    },
-    plain: true,
-    returning: true
+  await Sausage.create({ name: "frank", vegetarian: false })
+  await Bun.create({ name: "standard" })
+
+  const chicagoStyle = await HotDog.create({ name: "chicago-style" })
+  // console.log(chicagoStyle.__proto__) // List the magic methods
+
+  const celery = await Topping.create({ name: "celery salt" })
+  const tomato = await Topping.create({ name: "tomato" })
+  await chicagoStyle.addTopping(celery)
+  await chicagoStyle.addTopping(tomato)
+
+  // const chicagoStyleWithToppings = HotDog.findByPk(1) // Finds one hot dog
+  const chicagoStyleWithToppings = await HotDog.findAll({
+    where: { name: "chicago-style" },
+    raw: true
   })
-  // console.log(Array.isArray(plainBacon))
+  console.log(chicagoStyleWithToppings)
 
-  const menu = await Sandwich.bulkCreate(
-    [{ name: "Reuben" }, { name: "Meatball Sub" }, { name: "Tuna Melt" }],
-    { returning: true }
-  )
-  const updatedMenu = await Sandwich.update(
-    { name: "Corned Beef" },
-    {
-      where: {  },
-      returning: true
-    }
-  )
-  console.log(updatedMenu)
-
-  await db.close()
+  await db.close() // close the database
 }
 seedDatabase()
