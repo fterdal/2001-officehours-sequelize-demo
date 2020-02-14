@@ -1,63 +1,58 @@
-/**
- * Creating models
- * Creating entities
- * Adding relationships
- * Querying
- */
-
 const Sequelize = require("sequelize")
-const db = new Sequelize("postgres://localhost:5432/hawtdogs", {
+const db = new Sequelize("postgres://localhost:5432/menu", {
   logging: false
 })
 
-const Dog = db.define("dog", {
-  name: Sequelize.STRING,
-  quality: Sequelize.INTEGER
+const Entree = db.define("entree", {
+  name: Sequelize.STRING
 })
 
-const Topping = db.define("topping", {
-  name: Sequelize.STRING,
-  vegetarian: {
-    type: Sequelize.BOOLEAN,
-    defaultValue: false
-  }
+const Ingredient = db.define("ingredient", {
+  name: Sequelize.STRING
 })
 
-// One To Many
-Topping.belongsTo(Dog)
-Dog.hasMany(Topping)
+Entree.belongsToMany(Ingredient, { through: "recipe" })
+Ingredient.belongsToMany(Entree, { through: "recipe" })
 
-async function seedDatabase() {
+async function seed() {
   await db.sync({ force: true })
 
-  // Do stuff
-  const chicago = await Dog.create({ name: "chicago-style", quality: 10 })
-  const newYork = await Dog.create({ name: "newyork-style", quality: 1 })
+  const [carbonara, spaghetti, ravioli] = await Entree.bulkCreate([
+    { name: "Carbonara" },
+    { name: "Spaghetti" },
+    { name: "Ravioli" }
+  ])
 
-  const celery = await Topping.create({ name: "celery salt", vegetarian: true })
-  const ketchup = await Topping.create({ name: "ketchup", vegetarian: true })
-  const sportPepper = await Topping.create({
-    name: "sport pepper",
-    vegetarian: true
+  const [linguini, marinara, sausage] = await Ingredient.bulkCreate([
+    { name: "linguini" },
+    { name: "marinara" },
+    { name: "sausage" }
+  ])
+
+  // console.log(linguini.__proto__)
+  // console.log(carbonara.__proto__)
+  // console.log(Entree.__proto__)
+
+  await carbonara.addIngredient(linguini), // magic method
+  await carbonara.addIngredient(sausage) // magic method
+  await marinara.addEntree(spaghetti) // magic method
+
+  // await Promise.all([
+  //   carbonara.addIngredient(linguini), // magic method
+  //   carbonara.addIngredient(sausage) // magic method
+  // ])
+
+  // Eager loading
+  const eagerLoadCarbonara = await Entree.findByPk(1, {
+    include: [Ingredient]
   })
-  const bacon = await Topping.create({ name: "bacon" })
+  console.log(eagerLoadCarbonara.ingredients)
 
-  // Magic methods
-  // console.log(chicago.__proto__) // Cool MAgic Method Hack
-  await chicago.addTopping(celery)
-  await chicago.addTopping(sportPepper)
-  await newYork.addTopping(ketchup)
-
-  // findAll and findByPk are very common
-  const toppingsOnChicagoDogs = await Topping.findAll({
-    include: [{ model: Dog }],
-    where: {
-      dogId: 1
-    },
-    raw: true
-  })
-  console.log(toppingsOnChicagoDogs)
+  // All about them magic methods
+  // const retrievedCarbonara = await Entree.findByPk(1)
+  // const carbonaraIngredients = await retrievedCarbonara.getIngredients()
+  // console.log(carbonaraIngredients)
 
   await db.close()
 }
-seedDatabase()
+seed()
