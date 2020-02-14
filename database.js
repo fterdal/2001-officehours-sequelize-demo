@@ -1,57 +1,69 @@
 const Sequelize = require("sequelize")
-const db = new Sequelize("postgres://localhost:5432/menu", {
+const db = new Sequelize("postgres://localhost:5432/dmv", {
   logging: false
 })
 
-const Entree = db.define("entree", {
+const Car = db.define("car", {
+  modelName: Sequelize.STRING
+})
+
+const Owner = db.define("owner", {
   name: Sequelize.STRING
 })
 
-const Ingredient = db.define("ingredient", {
-  name: Sequelize.STRING
+const OwnershipRecords = db.define("ownership_records", {
+  purchaseDate: Sequelize.DATEONLY
 })
 
-Entree.belongsToMany(Ingredient, { through: "recipe" })
-Ingredient.belongsToMany(Entree, { through: "recipe" })
+// Many-to-Many Relationship
+Car.belongsToMany(Owner, { through: OwnershipRecords })
+Owner.belongsToMany(Car, { through: OwnershipRecords })
+
+const seedCars = [
+  { modelName: "Prius" },
+  { modelName: "Ferrari" },
+  { modelName: "Pickup Truck" }
+]
+
+const seedOwners = [{ name: "Priti" }, { name: "Justin" }, { name: "Finn" }]
 
 async function seed() {
   await db.sync({ force: true })
 
-  const [carbonara, spaghetti, ravioli] = await Entree.bulkCreate([
-    { name: "Carbonara" },
-    { name: "Spaghetti" },
-    { name: "Ravioli" }
-  ])
-
-  const [linguini, marinara, sausage] = await Ingredient.bulkCreate([
-    { name: "linguini" },
-    { name: "marinara" },
-    { name: "sausage" }
-  ])
-
-  // console.log(linguini.__proto__)
-  // console.log(carbonara.__proto__)
-  // console.log(Entree.__proto__)
-
-  await carbonara.addIngredient(linguini), // magic method
-  await carbonara.addIngredient(sausage) // magic method
-  await marinara.addEntree(spaghetti) // magic method
-
-  // await Promise.all([
-  //   carbonara.addIngredient(linguini), // magic method
-  //   carbonara.addIngredient(sausage) // magic method
-  // ])
-
-  // Eager loading
-  const eagerLoadCarbonara = await Entree.findByPk(1, {
-    include: [Ingredient]
+  // const prius = await Car.create({ modelName: "Prius" })
+  // const ferrari = await Car.create({ modelName: "Ferrari" })
+  // const pickupTruck = await Car.create({ modelName: "Pickup Truck" })
+  // const priti = await Owner.create({ name: "Priti" })
+  // const justin = await Owner.create({ name: "Justin" })
+  // const finn = await Owner.create({ name: "Finn" })
+  const [prius, ferrari, pickupTruck] = await Car.bulkCreate(seedCars, {
+    returning: true
   })
-  console.log(eagerLoadCarbonara.ingredients)
+  const [priti, justin, finn] = await Owner.bulkCreate(seedOwners, {
+    returning: true
+  })
 
-  // All about them magic methods
-  // const retrievedCarbonara = await Entree.findByPk(1)
-  // const carbonaraIngredients = await retrievedCarbonara.getIngredients()
-  // console.log(carbonaraIngredients)
+  // const prius = cars[0]
+  // const ferrari = cars[1]
+  // const pickupTruck = cars[2]
+
+  // const priti = owners[0]
+  // const justin = owners[1]
+  // const finn = owners[2]
+
+  // console.log(prius.__proto__) // shows the magic methods
+  await prius.addOwner(finn)
+  await justin.addCar(ferrari)
+  await justin.addCar(pickupTruck)
+
+  // Not recommended, but works
+  await OwnershipRecords.create({ ownerId: priti.id, carId: pickupTruck.id })
+
+  // Eager Loading Example
+  const justinWithCars = await Owner.findByPk(2, {
+    include: [{ model: Car }]
+  })
+  console.log(justinWithCars.cars)
 
   await db.close()
 }
